@@ -1,0 +1,12 @@
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\bin\Release\DobotClientDemo.exe
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\bin\Release\DobotClientDemo.pdb
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\obj\Release\DobotClientDemo2.0.csprojResolveAssemblyReference.cache
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\obj\Release\MainWindow.baml
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\obj\Release\MainWindow.g.cs
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\obj\Release\App.g.cs
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\obj\Release\DobotClientDemo_MarkupCompile.cache
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\obj\Release\DobotClientDemo.g.resources
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\obj\Release\DobotClientDemo.Properties.Resources.resources
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\obj\Release\DobotClientDemo2.0.csproj.GenerateResource.Cache
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\obj\Release\DobotClientDemo.exe
+D:\Git\DobotDemoForCSharp\DobotClientDemo2.0\obj\Release\DobotClientDemo.pdb
