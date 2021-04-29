@@ -91,10 +91,5 @@ namespace DobotBridgePrototype
             }
 
         }
-
-        private void StartDobot()
-        {
-
-        }
     }
 }

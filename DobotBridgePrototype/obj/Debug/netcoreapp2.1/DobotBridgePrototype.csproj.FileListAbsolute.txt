@@ -3,7 +3,6 @@ C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\bin\Debug
 C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\bin\Debug\netcoreapp2.1\DobotBridgePrototype.runtimeconfig.dev.json
 C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\bin\Debug\netcoreapp2.1\DobotBridgePrototype.dll
 C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\bin\Debug\netcoreapp2.1\DobotBridgePrototype.pdb
-C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\obj\Debug\netcoreapp2.1\DobotBridgePrototype.csprojAssemblyReference.cache
 C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\obj\Debug\netcoreapp2.1\DobotBridgePrototype.csproj.CoreCompileInputs.cache
 C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\obj\Debug\netcoreapp2.1\DobotBridgePrototype.AssemblyInfoInputs.cache
 C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\obj\Debug\netcoreapp2.1\DobotBridgePrototype.AssemblyInfo.cs
