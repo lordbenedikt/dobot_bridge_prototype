@@ -8,3 +8,4 @@ C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\obj\Debug
 C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\obj\Debug\netcoreapp2.1\DobotBridgePrototype.AssemblyInfo.cs
 C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\obj\Debug\netcoreapp2.1\DobotBridgePrototype.dll
 C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\obj\Debug\netcoreapp2.1\DobotBridgePrototype.pdb
+C:\Users\bjns11\source\repos\DobotBridgePrototype\DobotBridgePrototype\obj\Debug\netcoreapp2.1\DobotBridgePrototype.csprojAssemblyReference.cache
