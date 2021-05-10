@@ -10,28 +10,29 @@ namespace DobotBridgePrototype
 {
     class Program
     {
+
+        static XMLReader xmlReader = new XMLReader();
+        static bool isConnected = false;
+        static byte isJoint = (byte)0;
+        static JogCmd currentCmd;
+        static Pose pose = new Pose();
+        static System.Timers.Timer posTimer = new System.Timers.Timer();
+        static HOMECmd homeCmd = new HOMECmd();
+        static ulong queuedCmdIndex = 0;
+
         static void Main(string[] args)
         {
-            var xmlReader = new XMLReader();
 
-            bool isConnected = false;
-
-            byte isJoint = (byte)0;
-            JogCmd currentCmd;
-            Pose pose = new Pose();
-            System.Timers.Timer posTimer = new System.Timers.Timer();
-            HOMECmd homeCmd = new HOMECmd();
-            ulong queuedCmdIndex = 0;
-
-            //initialize
+            // connect and initialize
+            Console.WriteLine("Connecting to Dobot...");
             StringBuilder fwType = new StringBuilder(60);
             StringBuilder version = new StringBuilder(60);
 
-            ///connect dobot
             int ret = DobotDll.ConnectDobot("", 115200, fwType, version);
             if (ret == (int)DobotConnect.DobotConnect_NoError)
             {
                 Console.WriteLine("Connected successfully - type={0}, version={1}", fwType, version);
+                isConnected = true;
             }
             else if (ret == (int)DobotConnect.DobotConnect_NotFound)
             {
@@ -44,8 +45,7 @@ namespace DobotBridgePrototype
                 return;
             }
 
-            isConnected = true;
-
+            // set home parameters
             HOMEParams home = new HOMEParams();
             home.x = 250;
             home.y = 0;
@@ -53,67 +53,128 @@ namespace DobotBridgePrototype
             home.r = 0;
             DobotDll.SetHOMEParams(ref home, true, ref queuedCmdIndex);
 
+            WaitForUserInput();
+            DobotDll.DisconnectDobot();
 
-            string input = "";
-            while (input != "exit")
+        }
+
+        static void WaitForUserInput()
+        {
+            var run = false;
+            var setFilename = false;
+            var setGripper = false;
+
+            while (true)
             {
-                input = Console.ReadLine();
+                Console.Write(">> ");
+                string input = Console.ReadLine().Trim();
+                string filename = "";
+                string[] arguments = input.Split(" ");
 
-                if (isConnected)
+                foreach (string argument in arguments)
                 {
-                    if (input == "moveA")
+                    if (setFilename && filename == "")
                     {
-                        DobotPose[] pos = xmlReader.getPoses("test.playback");
-                        Console.WriteLine("{0}  {1}  {2}  {3}  {4}", (byte)1, pos[0].x, pos[0].y, pos[0].z, pos[0].r);
-                        ptp((byte)1, pos[0].x, pos[0].y, pos[0].z, pos[0].r, pos[0].gripper);
+                        filename = argument;
+                        setFilename = false;
                     }
 
-                    if (input == "moveB")
+                    else if (argument == "exit")
                     {
-                        ptp((byte)1, 30.99f, 106.4f, 0.99f, 0, false);
+                        return;
                     }
 
-                    if (input == "enqueue")
+                    else if (setGripper)
                     {
-                        DobotPose[] poses = xmlReader.getPoses("testrun.playback");
-                        enqueue(poses);
+                        UInt64 cmdIndex = 0;
+                        if (argument == "on")
+                        {
+                            while (true)
+                            {
+                                int ret = DobotDll.SetEndEffectorSuctionCup(true, true, true, ref cmdIndex);
+                                if (ret == 0)
+                                    break;
+                            }
+                        }
+                        if (argument == "off")
+                        {
+                            while (true)
+                            {
+                                int ret = DobotDll.SetEndEffectorSuctionCup(false, true, true, ref cmdIndex);
+                                if (ret == 0)
+                                    break;
+                            }
+                        }
                     }
 
-                    if (input == "getPose")
+                    else if (argument == "gripper")
                     {
-                        DobotDll.GetPose(ref pose);
-                        string posAsString = String.Format("x:{0}   y:{1}   z:{2}   rHead:{3}   jointAngle:{4}\n", pose.x, pose.y, pose.z, pose.rHead, pose.jointAngle);
-                        Console.WriteLine(posAsString);
+                        setGripper = true;
                     }
 
-                    if (input == "home")
+                    else if (argument == "run")
+                    {
+                        run = true;
+                        setFilename = true;
+                    }
+
+                    else if (argument == "home")
                     {
                         DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
                     }
 
-                    if (input == "clearQueue")
+                    else if (argument == "start")
+                    {
+                        DobotDll.SetQueuedCmdStartExec();
+                    }
+
+                    else if (argument == "stop")
+                    {
+                        DobotDll.SetQueuedCmdStopExec();
+                    }
+
+                    else if (argument == "clear")
                     {
                         DobotDll.SetQueuedCmdClear();
                     }
                 }
 
+                // add poses from .playback-file to command queue
+                if (run)
+                {
+                    // append .playback to filename
+                    string[] segments = filename.Split(".");
+                    if (segments.Last<string>() != "playback")
+                    {
+                        filename = filename + ".playback";
+                    }
+                    // if file exists add poses to queue
+                    try
+                    {
+                        DobotPose[] poses = xmlReader.getPoses(filename);
+                        Enqueue(poses);
+                    }
+                    catch (System.IO.FileNotFoundException e)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("file '{0}' not found!", filename);
+                        Console.ForegroundColor = ConsoleColor.White;
+                    }
+                    run = false;
+                }
+
             }
-
-            DobotDll.DisconnectDobot();
-
-
-
         }
 
-        public static void enqueue(DobotPose[] poses)
+        static void Enqueue(DobotPose[] poses)
         {
-            foreach(DobotPose pose in poses)
+            foreach (DobotPose pose in poses)
             {
                 ptp(pose.style, pose.x, pose.y, pose.z, pose.r, pose.gripper);
             }
         }
 
-        public static UInt64 ptp(byte style, float x, float y, float z, float r, bool gripper)
+        static UInt64 ptp(byte style, float x, float y, float z, float r, bool gripper)
         {
             PTPCmd pdbCmd;
             UInt64 cmdIndex = 0;
@@ -140,7 +201,7 @@ namespace DobotBridgePrototype
         }
     }
 
-    public class DobotPose
+    class DobotPose
     {
         public byte style;
         public string name;
@@ -173,7 +234,7 @@ namespace DobotBridgePrototype
         }
     }
 
-    public class XMLReader
+    class XMLReader
     {
         public DobotPose[] getPoses(string file)
         {
@@ -181,14 +242,12 @@ namespace DobotBridgePrototype
             var elements = playback.Elements().ToList<XElement>();
 
             DobotPose[] poses = new DobotPose[elements.Count() - 2];
-
             for (int i = 2; i < elements.Count(); i++)
             {
-                poses[i-2] = new DobotPose(elements[i]);
+                poses[i - 2] = new DobotPose(elements[i]);
             }
 
             return poses;
-
         }
     }
 }
