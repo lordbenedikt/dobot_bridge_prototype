@@ -12,7 +12,6 @@ namespace DobotBridgePrototype
     {
 
         static XMLReader xmlReader = new XMLReader();
-        static bool isConnected = false;
         static byte isJoint = (byte)0;
         static JogCmd currentCmd;
         static Pose pose = new Pose();
@@ -22,7 +21,13 @@ namespace DobotBridgePrototype
 
         static void Main(string[] args)
         {
+            Initialize();
+            WaitForUserInput();
+            DobotDll.DisconnectDobot();
+        }
 
+        static void Initialize()
+        {
             // connect and initialize
             Console.WriteLine("Connecting to Dobot...");
             StringBuilder fwType = new StringBuilder(60);
@@ -32,7 +37,6 @@ namespace DobotBridgePrototype
             if (ret == (int)DobotConnect.DobotConnect_NoError)
             {
                 Console.WriteLine("Connected successfully - type={0}, version={1}", fwType, version);
-                isConnected = true;
             }
             else if (ret == (int)DobotConnect.DobotConnect_NotFound)
             {
@@ -52,10 +56,6 @@ namespace DobotBridgePrototype
             home.z = 85;
             home.r = 0;
             DobotDll.SetHOMEParams(ref home, true, ref queuedCmdIndex);
-
-            WaitForUserInput();
-            DobotDll.DisconnectDobot();
-
         }
 
         static void WaitForUserInput()
