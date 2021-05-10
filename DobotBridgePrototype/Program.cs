@@ -10,9 +10,9 @@ namespace DobotBridgePrototype
 {
     class Program
     {
-
         static XMLReader xmlReader = new XMLReader();
         static byte isJoint = (byte)0;
+        static Boolean isConnected = false;
         static JogCmd currentCmd;
         static Pose pose = new Pose();
         static System.Timers.Timer posTimer = new System.Timers.Timer();
@@ -36,25 +36,30 @@ namespace DobotBridgePrototype
             int ret = DobotDll.ConnectDobot("", 115200, fwType, version);
             if (ret == (int)DobotConnect.DobotConnect_NoError)
             {
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("Connected successfully - type={0}, version={1}", fwType, version);
+                Console.ForegroundColor = ConsoleColor.White;
+                isConnected = true;
             }
             else if (ret == (int)DobotConnect.DobotConnect_NotFound)
             {
-                Console.WriteLine("DobotConnect_NotFound");
+                ShowErrorMsg("DobotConnect_NotFound");
                 return;
             }
-            else if (ret == (int)DobotConnect.DobotConnect_NotFound)
+            else if (ret == (int)DobotConnect.DobotConnect_Occupied)
             {
-                Console.WriteLine("DobotConnect_Occupied");
+                ShowErrorMsg("DobotConnect_Occupied");
                 return;
             }
 
             // set home parameters
-            HOMEParams home = new HOMEParams();
-            home.x = 250;
-            home.y = 0;
-            home.z = 85;
-            home.r = 0;
+            HOMEParams home = new HOMEParams
+            {
+                x = 250,
+                y = 0,
+                z = 85,
+                r = 0
+            };
             DobotDll.SetHOMEParams(ref home, true, ref queuedCmdIndex);
         }
 
@@ -73,7 +78,25 @@ namespace DobotBridgePrototype
 
                 foreach (string argument in arguments)
                 {
-                    if (setFilename && filename == "")
+                    if (argument == "connect")
+                    {
+                        if (!isConnected)
+                        {
+                            Initialize();
+                        }
+                        else
+                        {
+                            Console.WriteLine("already connected to Dobot");
+                        }
+                    }
+
+                    else if (!isConnected)
+                    {
+                        ShowErrorMsg("please connect to Dobot!");
+                        break;
+                    }
+
+                    else if (setFilename && filename == "")
                     {
                         filename = argument;
                         setFilename = false;
@@ -137,6 +160,13 @@ namespace DobotBridgePrototype
                     {
                         DobotDll.SetQueuedCmdClear();
                     }
+
+                    else if (argument == "getPose")
+                    {
+                        DobotDll.GetPose(ref pose);
+                        Console.WriteLine("x={0} y={1} z={2} rHead={3} jointAngles=[{4}:{5}:{6}:{7}]", 
+                            pose.x, pose.y, pose.z, pose.rHead, pose.jointAngle[0], pose.jointAngle[1], pose.jointAngle[2], pose.jointAngle[3]);
+                    }
                 }
 
                 // add poses from .playback-file to command queue
@@ -170,20 +200,21 @@ namespace DobotBridgePrototype
         {
             foreach (DobotPose pose in poses)
             {
-                ptp(pose.style, pose.x, pose.y, pose.z, pose.r, pose.gripper);
+                Enqueue(pose);
             }
         }
 
-        static UInt64 ptp(byte style, float x, float y, float z, float r, bool gripper)
+        static UInt64 Enqueue(DobotPose pose)
         {
             PTPCmd pdbCmd;
             UInt64 cmdIndex = 0;
+            WAITCmd waitCmd = new WAITCmd();
 
-            pdbCmd.ptpMode = style;
-            pdbCmd.x = x;
-            pdbCmd.y = y;
-            pdbCmd.z = z;
-            pdbCmd.rHead = r;
+            pdbCmd.ptpMode = pose.style;
+            pdbCmd.x = pose.x;
+            pdbCmd.y = pose.y;
+            pdbCmd.z = pose.z;
+            pdbCmd.rHead = pose.r;
             while (true)
             {
                 int ret = DobotDll.SetPTPCmd(ref pdbCmd, true, ref cmdIndex);
@@ -192,12 +223,27 @@ namespace DobotBridgePrototype
             }
             while (true)
             {
-                int ret = DobotDll.SetEndEffectorSuctionCup(gripper, true, true, ref cmdIndex);
+                int ret = DobotDll.SetEndEffectorSuctionCup(pose.gripper, true, true, ref cmdIndex);
+                if (ret == 0)
+                    break;
+            }
+            while (true)
+            {
+                waitCmd.timeout = pose.pauseTime;
+                int ret = DobotDll.SetWAITCmd(ref waitCmd, true, ref cmdIndex);
                 if (ret == 0)
                     break;
             }
 
             return cmdIndex;
+        }
+
+
+        static void ShowErrorMsg(string msg)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(msg);
+            Console.ForegroundColor = ConsoleColor.White;
         }
     }
 
@@ -209,7 +255,7 @@ namespace DobotBridgePrototype
         public float y;
         public float z;
         public float r;
-        public float pauseTime;
+        public uint pauseTime;
         public bool gripper;
 
         NumberFormatInfo numFormat = CultureInfo.InvariantCulture.NumberFormat;
@@ -225,11 +271,12 @@ namespace DobotBridgePrototype
         public DobotPose(XElement row)
         {
             style = byte.Parse(row.Element("item_0").Value);
+            name = row.Element("item_1").Value;
             x = float.Parse(row.Element("item_2").Value, numFormat);
             y = float.Parse(row.Element("item_3").Value, numFormat);
             z = float.Parse(row.Element("item_4").Value, numFormat);
             r = float.Parse(row.Element("item_5").Value, numFormat);
-            pauseTime = float.Parse(row.Element("item_10").Value, numFormat);
+            pauseTime = (uint)(float.Parse(row.Element("item_10").Value, numFormat) * 1000);
             gripper = int.Parse(row.Element("item_12").Value) == 1;
         }
     }
