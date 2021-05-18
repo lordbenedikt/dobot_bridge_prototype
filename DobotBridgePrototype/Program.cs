@@ -5,11 +5,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 using System.Globalization;
+using System.Threading;
 
 namespace DobotBridgePrototype
 {
-    class Program
+        
+
+    class DobotController
     {
+        static int lastIndex = 0;
         static XMLReader xmlReader = new XMLReader();
         static byte isJoint = (byte)0;
         static Boolean isConnected = false;
@@ -18,10 +22,51 @@ namespace DobotBridgePrototype
         static System.Timers.Timer posTimer = new System.Timers.Timer();
         static HOMECmd homeCmd = new HOMECmd();
         static ulong queuedCmdIndex = 0;
+        static ulong executedCmdIndex = 0;
+
+        static bool isRunning = false;
+        static Thread threadDobot = new Thread(new ThreadStart(CheckState));
+
+        public static void CheckState()
+        {
+            while (isRunning)
+            {
+                byte[] alarmsState = new byte[1];
+                uint alarm = 0;
+
+                DobotDll.GetQueuedCmdCurrentIndex(ref executedCmdIndex);
+                DobotDll.GetAlarmsState(alarmsState, ref alarm, 1);
+
+
+                if (lastIndex != 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Blue;
+                    PrintError(lastIndex);
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write(">> ");
+                    return;
+                }
+                if(alarm != 0 && alarm != 16)
+                {
+                    Console.WriteLine("Alarm: " + alarm);
+                    alarm = 0;
+                }
+                if (queuedCmdIndex == executedCmdIndex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Blue;
+                    Console.WriteLine("OnFinish()");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write(">> ");
+                    return;
+                }
+                Thread.Sleep(10);
+            }
+        }
 
         static void Main(string[] args)
         {
             Initialize();
+            DobotDll.SetCmdTimeout(10);
             WaitForUserInput();
             DobotDll.DisconnectDobot();
         }
@@ -61,6 +106,17 @@ namespace DobotBridgePrototype
                 r = 0
             };
             DobotDll.SetHOMEParams(ref home, true, ref queuedCmdIndex);
+            DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
+            isRunning = true;
+        }
+
+        static void StartCheckState()
+        {
+            if (!threadDobot.IsAlive)
+            {
+                threadDobot = new Thread(new ThreadStart(CheckState));
+                threadDobot.Start();
+            }
         }
 
         static void WaitForUserInput()
@@ -112,21 +168,11 @@ namespace DobotBridgePrototype
                         UInt64 cmdIndex = 0;
                         if (argument == "on")
                         {
-                            while (true)
-                            {
                                 int ret = DobotDll.SetEndEffectorSuctionCup(true, true, true, ref cmdIndex);
-                                if (ret == 0)
-                                    break;
-                            }
                         }
                         if (argument == "off")
                         {
-                            while (true)
-                            {
-                                int ret = DobotDll.SetEndEffectorSuctionCup(false, true, true, ref cmdIndex);
-                                if (ret == 0)
-                                    break;
-                            }
+                                lastIndex = DobotDll.SetEndEffectorSuctionCup(false, true, true, ref cmdIndex);
                         }
                     }
 
@@ -143,27 +189,27 @@ namespace DobotBridgePrototype
 
                     else if (argument == "home")
                     {
-                        DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
+                        lastIndex = DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
                     }
 
                     else if (argument == "start")
                     {
-                        DobotDll.SetQueuedCmdStartExec();
+                        lastIndex = DobotDll.SetQueuedCmdStartExec();
                     }
 
                     else if (argument == "stop")
                     {
-                        DobotDll.SetQueuedCmdStopExec();
+                        lastIndex = DobotDll.SetQueuedCmdStopExec();
                     }
 
                     else if (argument == "clear")
                     {
-                        DobotDll.SetQueuedCmdClear();
+                        ClearQueue();
                     }
-
+                    
                     else if (argument == "getPose")
                     {
-                        DobotDll.GetPose(ref pose);
+                        lastIndex = DobotDll.GetPose(ref pose);
                         Console.WriteLine("x={0} y={1} z={2} rHead={3} jointAngles=[{4}:{5}:{6}:{7}]", 
                             pose.x, pose.y, pose.z, pose.rHead, pose.jointAngle[0], pose.jointAngle[1], pose.jointAngle[2], pose.jointAngle[3]);
                     }
@@ -183,6 +229,8 @@ namespace DobotBridgePrototype
                     {
                         DobotPose[] poses = xmlReader.getPoses(filename);
                         Enqueue(poses);
+                        StartCheckState();
+                        
                     }
                     catch (System.IO.FileNotFoundException e)
                     {
@@ -196,6 +244,15 @@ namespace DobotBridgePrototype
             }
         }
 
+        static void ClearQueue()
+        {
+            lastIndex = DobotDll.ClearAllAlarmsState();
+            lastIndex = DobotDll.SetQueuedCmdClear();
+            DobotDll.SetEndEffectorSuctionCup(false, true, true, ref queuedCmdIndex);
+            DobotDll.SetQueuedCmdStartExec();
+            lastIndex = DobotDll.SetQueuedCmdClear();
+        }
+
         static void Enqueue(DobotPose[] poses)
         {
             foreach (DobotPose pose in poses)
@@ -207,7 +264,6 @@ namespace DobotBridgePrototype
         static UInt64 Enqueue(DobotPose pose)
         {
             PTPCmd pdbCmd;
-            UInt64 cmdIndex = 0;
             WAITCmd waitCmd = new WAITCmd();
 
             pdbCmd.ptpMode = pose.style;
@@ -215,27 +271,13 @@ namespace DobotBridgePrototype
             pdbCmd.y = pose.y;
             pdbCmd.z = pose.z;
             pdbCmd.rHead = pose.r;
-            while (true)
-            {
-                int ret = DobotDll.SetPTPCmd(ref pdbCmd, true, ref cmdIndex);
-                if (ret == 0)
-                    break;
-            }
-            while (true)
-            {
-                int ret = DobotDll.SetEndEffectorSuctionCup(pose.gripper, true, true, ref cmdIndex);
-                if (ret == 0)
-                    break;
-            }
-            while (true)
-            {
-                waitCmd.timeout = pose.pauseTime;
-                int ret = DobotDll.SetWAITCmd(ref waitCmd, true, ref cmdIndex);
-                if (ret == 0)
-                    break;
-            }
 
-            return cmdIndex;
+            lastIndex = DobotDll.SetPTPCmd(ref pdbCmd, true, ref queuedCmdIndex);
+            lastIndex = DobotDll.SetEndEffectorSuctionCup(pose.gripper, true, true, ref queuedCmdIndex);
+            waitCmd.timeout = pose.pauseTime;
+            lastIndex = DobotDll.SetWAITCmd(ref waitCmd, true, ref queuedCmdIndex);
+
+            return queuedCmdIndex;
         }
 
 
@@ -244,6 +286,25 @@ namespace DobotBridgePrototype
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(msg);
             Console.ForegroundColor = ConsoleColor.White;
+        }
+
+        static void PrintError(int error)
+        {
+            switch((DobotCommunicate)error)
+            {
+                case DobotCommunicate.DobotCommunicate_NoError:
+                    { Console.WriteLine("DobotCommunicate_NoError"); }
+                    break;
+                case DobotCommunicate.DobotCommunicate_BufferFull:
+                    { Console.WriteLine("DobotCommunicate_BufferFull"); }
+                    break;
+                case DobotCommunicate.DobotCommunicate_Timeout:
+                    { Console.WriteLine("DobotCommunicate_Timeout"); }
+                    break;
+                case DobotCommunicate.DobotCommunicate_InvalidParams:
+                    { Console.WriteLine("DobotCommunicate_InvalidParams"); }
+                    break;
+            }
         }
     }
 
