@@ -9,20 +9,21 @@ using System.Threading;
 
 namespace DobotBridgePrototype
 {
-        
-
     class DobotController
     {
-        static int lastIndex = 0;
+        static int lastCommunicateIndex = 0;
+        static int lastError = 0;
+        static bool motionError = false;
+
         static XMLReader xmlReader = new XMLReader();
-        static byte isJoint = (byte)0;
         static Boolean isConnected = false;
-        static JogCmd currentCmd;
         static Pose pose = new Pose();
         static System.Timers.Timer posTimer = new System.Timers.Timer();
         static HOMECmd homeCmd = new HOMECmd();
+        static PTPJointParams ptpJointParams = new PTPJointParams();
         static ulong queuedCmdIndex = 0;
         static ulong executedCmdIndex = 0;
+        static uint alarmState = 0;
 
         static bool isRunning = false;
         static Thread threadDobot = new Thread(new ThreadStart(CheckState));
@@ -31,25 +32,44 @@ namespace DobotBridgePrototype
         {
             while (isRunning)
             {
-                byte[] alarmsState = new byte[1];
+                byte[] alarmStateArray = new byte[32];
                 uint alarm = 0;
 
                 DobotDll.GetQueuedCmdCurrentIndex(ref executedCmdIndex);
-                DobotDll.GetAlarmsState(alarmsState, ref alarm, 1);
+                DobotDll.GetAlarmsState(alarmStateArray, ref alarm, 1);
 
+                for(int i = 0; i<alarmStateArray.Length; i++) {
+                    if (alarmStateArray[i] != 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("OnError(): {0} | {1}", i, alarmStateArray[i]);
+                        Console.ForegroundColor = ConsoleColor.White;
+                        return;
+                    }
+                }
 
-                if (lastIndex != 0)
+                if (lastCommunicateIndex != 0 && lastCommunicateIndex != lastError)
                 {
-                    Console.ForegroundColor = ConsoleColor.Blue;
-                    PrintError(lastIndex);
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    PrintError(lastCommunicateIndex);
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.Write(">> ");
-                    return;
+                    lastError = lastCommunicateIndex;
                 }
-                if(alarm != 0 && alarm != 16)
+                if(alarm != 0)
                 {
-                    Console.WriteLine("Alarm: " + alarm);
-                    alarm = 0;
+                    if (alarm == 16 && alarmState != alarm)
+                    {
+                        alarmState = alarm;
+                        Console.ForegroundColor = ConsoleColor.Blue;
+                        Console.WriteLine("OnStart()");
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.Write(">> ");
+                    }
+                    else if (alarm != 16)
+                    {
+                        Console.WriteLine("Alarm: " + alarm);
+                    }
                 }
                 if (queuedCmdIndex == executedCmdIndex)
                 {
@@ -66,7 +86,7 @@ namespace DobotBridgePrototype
         static void Main(string[] args)
         {
             Initialize();
-            DobotDll.SetCmdTimeout(10);
+            DobotDll.SetCmdTimeout(20);
             WaitForUserInput();
             DobotDll.DisconnectDobot();
         }
@@ -106,7 +126,7 @@ namespace DobotBridgePrototype
                 r = 0
             };
             DobotDll.SetHOMEParams(ref home, true, ref queuedCmdIndex);
-            DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
+            // DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
             isRunning = true;
         }
 
@@ -123,11 +143,19 @@ namespace DobotBridgePrototype
         {
             var run = false;
             var setFilename = false;
-            var setGripper = false;
+            var setSpeed = false;
 
             while (true)
             {
                 Console.Write(">> ");
+
+                /*
+                // show debugging info
+                Console.Write("exec: " + executedCmdIndex + "\n>> ");
+                Console.Write("queue: " + queuedCmdIndex + "\n>> ");
+                Console.Write("lastindex: " + lastCommunicateIndex + "\n>> ");
+                */
+
                 string input = Console.ReadLine().Trim();
                 string filename = "";
                 string[] arguments = input.Split(" ");
@@ -136,14 +164,15 @@ namespace DobotBridgePrototype
                 {
                     if (argument == "connect")
                     {
-                        if (!isConnected)
-                        {
-                            Initialize();
-                        }
-                        else
-                        {
-                            Console.WriteLine("already connected to Dobot");
-                        }
+                        Initialize();
+                    }
+                    else if (argument == "disconnect")
+                    {
+                        DobotDll.DisconnectDobot();
+                        isConnected = false;
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("Disconnected from Dobot");
+                        Console.ForegroundColor = ConsoleColor.White;
                     }
 
                     else if (!isConnected)
@@ -152,33 +181,24 @@ namespace DobotBridgePrototype
                         break;
                     }
 
-                    else if (setFilename && filename == "")
+                    else if (setFilename)
                     {
                         filename = argument;
                         setFilename = false;
                     }
 
+                    else if (setSpeed )
+                    {
+                        float[] vel = { 5, 5, 5, 5 };
+                        float[] acc = { 5, 5, 5, 5 };
+                        ptpJointParams.velocity = vel;
+                        ptpJointParams.acceleration = acc;
+                        DobotDll.SetPTPJointParams(ref ptpJointParams, true, ref queuedCmdIndex);
+                    }
+
                     else if (argument == "exit")
                     {
                         return;
-                    }
-
-                    else if (setGripper)
-                    {
-                        UInt64 cmdIndex = 0;
-                        if (argument == "on")
-                        {
-                                int ret = DobotDll.SetEndEffectorSuctionCup(true, true, true, ref cmdIndex);
-                        }
-                        if (argument == "off")
-                        {
-                                lastIndex = DobotDll.SetEndEffectorSuctionCup(false, true, true, ref cmdIndex);
-                        }
-                    }
-
-                    else if (argument == "gripper")
-                    {
-                        setGripper = true;
                     }
 
                     else if (argument == "run")
@@ -189,17 +209,17 @@ namespace DobotBridgePrototype
 
                     else if (argument == "home")
                     {
-                        lastIndex = DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
+                        lastCommunicateIndex = DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
                     }
 
                     else if (argument == "start")
                     {
-                        lastIndex = DobotDll.SetQueuedCmdStartExec();
+                        lastCommunicateIndex = DobotDll.SetQueuedCmdStartExec();
                     }
 
                     else if (argument == "stop")
                     {
-                        lastIndex = DobotDll.SetQueuedCmdStopExec();
+                        lastCommunicateIndex = DobotDll.SetQueuedCmdStopExec();
                     }
 
                     else if (argument == "clear")
@@ -209,9 +229,13 @@ namespace DobotBridgePrototype
                     
                     else if (argument == "getPose")
                     {
-                        lastIndex = DobotDll.GetPose(ref pose);
+                        lastCommunicateIndex = DobotDll.GetPose(ref pose);
                         Console.WriteLine("x={0} y={1} z={2} rHead={3} jointAngles=[{4}:{5}:{6}:{7}]", 
                             pose.x, pose.y, pose.z, pose.rHead, pose.jointAngle[0], pose.jointAngle[1], pose.jointAngle[2], pose.jointAngle[3]);
+                    }
+                    else if (argument == "setSpeed")
+                    {
+                        setSpeed = true;
                     }
                 }
 
@@ -246,11 +270,13 @@ namespace DobotBridgePrototype
 
         static void ClearQueue()
         {
-            lastIndex = DobotDll.ClearAllAlarmsState();
-            lastIndex = DobotDll.SetQueuedCmdClear();
+            motionError = false;
+            lastCommunicateIndex = DobotDll.ClearAllAlarmsState();
+            lastCommunicateIndex = DobotDll.SetQueuedCmdClear();
+            // disable suctionCap/gripper
             DobotDll.SetEndEffectorSuctionCup(false, true, true, ref queuedCmdIndex);
             DobotDll.SetQueuedCmdStartExec();
-            lastIndex = DobotDll.SetQueuedCmdClear();
+            lastCommunicateIndex = DobotDll.SetQueuedCmdClear();
         }
 
         static void Enqueue(DobotPose[] poses)
@@ -261,23 +287,53 @@ namespace DobotBridgePrototype
             }
         }
 
-        static UInt64 Enqueue(DobotPose pose)
+        static void Enqueue(DobotPose pose)
         {
-            PTPCmd pdbCmd;
+            // arc motion style
+            if(pose.style == 3)
+            {
+                // fehlerhaft!
+                ARCCmd arcCmd;
+
+                arcCmd.toPoint_x = pose.x;
+                arcCmd.toPoint_y = pose.y;
+                arcCmd.toPoint_z = pose.z;
+                arcCmd.toPoint_r = pose.r;
+                arcCmd.cirPoint_x = pose.xx;
+                arcCmd.cirPoint_y = pose.yy;
+                arcCmd.cirPoint_z = pose.zz;
+                arcCmd.cirPoint_r = pose.rr;
+
+                lastCommunicateIndex = DobotDll.SetARCCmd(ref arcCmd, true, ref queuedCmdIndex);
+            }
+            // all other motion styles
+            else
+            {
+                PTPCmd pdbCmd;
+
+                pdbCmd.ptpMode = pose.style;
+                pdbCmd.x = pose.x;
+                pdbCmd.y = pose.y;
+                pdbCmd.z = pose.z;
+                pdbCmd.rHead = pose.r;
+
+                lastCommunicateIndex = DobotDll.SetPTPCmd(ref pdbCmd, true, ref queuedCmdIndex);
+            }
+
+            // set suction cup/gripper
+            if (pose.endEffector == EndType.EndTypeSuctionCap)
+            {
+                lastCommunicateIndex = DobotDll.SetEndEffectorSuctionCup(pose.gripper == 1, true, true, ref queuedCmdIndex);
+            }
+            else if(pose.endEffector == EndType.EndTypeGripper)
+            {
+                lastCommunicateIndex = DobotDll.SetEndEffectorGripper(pose.gripper != 0, pose.gripper == 2, true, ref queuedCmdIndex);
+            }
+
+            // set pause time
             WAITCmd waitCmd = new WAITCmd();
-
-            pdbCmd.ptpMode = pose.style;
-            pdbCmd.x = pose.x;
-            pdbCmd.y = pose.y;
-            pdbCmd.z = pose.z;
-            pdbCmd.rHead = pose.r;
-
-            lastIndex = DobotDll.SetPTPCmd(ref pdbCmd, true, ref queuedCmdIndex);
-            lastIndex = DobotDll.SetEndEffectorSuctionCup(pose.gripper, true, true, ref queuedCmdIndex);
             waitCmd.timeout = pose.pauseTime;
-            lastIndex = DobotDll.SetWAITCmd(ref waitCmd, true, ref queuedCmdIndex);
-
-            return queuedCmdIndex;
+            lastCommunicateIndex = DobotDll.SetWAITCmd(ref waitCmd, true, ref queuedCmdIndex);
         }
 
 
@@ -316,8 +372,13 @@ namespace DobotBridgePrototype
         public float y;
         public float z;
         public float r;
+        public float xx;
+        public float yy;
+        public float zz;
+        public float rr;
         public uint pauseTime;
-        public bool gripper;
+        public int gripper;
+        public EndType endEffector = 0;
 
         NumberFormatInfo numFormat = CultureInfo.InvariantCulture.NumberFormat;
 
@@ -337,8 +398,23 @@ namespace DobotBridgePrototype
             y = float.Parse(row.Element("item_3").Value, numFormat);
             z = float.Parse(row.Element("item_4").Value, numFormat);
             r = float.Parse(row.Element("item_5").Value, numFormat);
+            // if arc motion style
+            if (style==3) { 
+                xx = float.Parse(row.Element("item_6").Value, numFormat);
+                yy = float.Parse(row.Element("item_7").Value, numFormat);
+                zz = float.Parse(row.Element("item_8").Value, numFormat);
+                rr = float.Parse(row.Element("item_9").Value, numFormat);
+            }
             pauseTime = (uint)(float.Parse(row.Element("item_10").Value, numFormat) * 1000);
-            gripper = int.Parse(row.Element("item_12").Value) == 1;
+            if (row.Element("item_11") != null)
+            {
+                endEffector = EndType.EndTypeGripper;
+                gripper = int.Parse(row.Element("item_11").Value, numFormat);
+            }
+            else if (row.Element("item_12") != null) {
+                endEffector = EndType.EndTypeSuctionCap;
+                gripper = int.Parse(row.Element("item_12").Value, numFormat);
+            }
         }
     }
 

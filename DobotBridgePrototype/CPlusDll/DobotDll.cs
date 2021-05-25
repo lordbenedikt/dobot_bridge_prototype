@@ -93,6 +93,10 @@ namespace DobotBridgePrototype.CPlusDll
         [DllImport("DobotDll.dll", EntryPoint = "ClearAllAlarmsState", CallingConvention = CallingConvention.Cdecl)]
         public static extern int ClearAllAlarmsState();
 
+        // Angle sensor error
+        [DllImport("DobotDll.dll", EntryPoint = "GetAngleSensorStaticError", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetAngleSensorStaticError(ref float rearArmAngleError, ref float frontArmAngleError);
+
         // HOME
         [DllImport("DobotDll.dll", EntryPoint = "SetHOMEParams", CallingConvention = CallingConvention.Cdecl)]
         public static extern int SetHOMEParams(ref HOMEParams homeParams, bool isQueued, ref UInt64 queuedCmdIndex);
