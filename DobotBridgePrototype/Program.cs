@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Text;
 using DobotBridgePrototype.CPlusDll;
-using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 using System.Globalization;
@@ -9,11 +8,25 @@ using System.Threading;
 
 namespace DobotBridgePrototype
 {
+    /*
+     * --- console commands ---
+     * run filename => execute commands previously saved in a .playback file. If missing '.playback' is automatically appended.
+     * connect => attempt connecting to dobot
+     * disconnect => disconnect from dobot
+     * setSpeed {velocity},{acceleration} => set dobot movement speed to given values
+     * home => return to home position
+     * start => start execution of queued commands
+     * stop => stop execution of queued commands
+     * clear => clear command queue and alarm states
+     * getPose => print current dobot pose
+     * exit => exit application
+     */
     class DobotController
     {
         static int lastCommunicateIndex = 0;
         static int lastError = 0;
-        static bool motionError = false;
+        static int maxVelocity = 700;
+        static int maxAcceleration = 700;
 
         static XMLReader xmlReader = new XMLReader();
         static Boolean isConnected = false;
@@ -36,7 +49,7 @@ namespace DobotBridgePrototype
                 uint alarm = 0;
 
                 DobotDll.GetQueuedCmdCurrentIndex(ref executedCmdIndex);
-                DobotDll.GetAlarmsState(alarmStateArray, ref alarm, 1);
+                DobotDll.GetAlarmsState(alarmStateArray, ref alarm, 32);
 
                 for(int i = 0; i<alarmStateArray.Length; i++) {
                     if (alarmStateArray[i] != 0)
@@ -44,6 +57,7 @@ namespace DobotBridgePrototype
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine("OnError(): {0} | {1}", i, alarmStateArray[i]);
                         Console.ForegroundColor = ConsoleColor.White;
+                        Console.Write(">> ");
                         return;
                     }
                 }
@@ -148,14 +162,6 @@ namespace DobotBridgePrototype
             while (true)
             {
                 Console.Write(">> ");
-
-                /*
-                // show debugging info
-                Console.Write("exec: " + executedCmdIndex + "\n>> ");
-                Console.Write("queue: " + queuedCmdIndex + "\n>> ");
-                Console.Write("lastindex: " + lastCommunicateIndex + "\n>> ");
-                */
-
                 string input = Console.ReadLine().Trim();
                 string filename = "";
                 string[] arguments = input.Split(" ");
@@ -187,13 +193,31 @@ namespace DobotBridgePrototype
                         setFilename = false;
                     }
 
-                    else if (setSpeed )
+                    else if (setSpeed)
                     {
-                        float[] vel = { 5, 5, 5, 5 };
-                        float[] acc = { 5, 5, 5, 5 };
-                        ptpJointParams.velocity = vel;
-                        ptpJointParams.acceleration = acc;
-                        DobotDll.SetPTPJointParams(ref ptpJointParams, true, ref queuedCmdIndex);
+                        string[] speed = argument.Split(",");
+                        try
+                        {
+                            float velInput = float.Parse(speed[0]);
+                            float accInput = float.Parse(speed[1]);
+                            float vel = Math.Clamp(velInput, 0, maxVelocity);
+                            float acc = Math.Clamp(accInput, 0, maxAcceleration);
+                            if(velInput != vel || accInput != acc)
+                            {
+                                Console.WriteLine("Values out of bound! Clamped to velocity:{0}/acceleration:{1}", vel, acc);
+                            }
+                            float[] velocity = { vel, vel, vel, vel };
+                            float[] acceleration = { acc, acc, acc, acc };
+                            ptpJointParams.velocity = velocity;
+                            ptpJointParams.acceleration = acceleration;
+                            DobotDll.SetPTPJointParams(ref ptpJointParams, true, ref queuedCmdIndex);
+                        }
+                        catch
+                        {
+                            Console.WriteLine("Parsing Error!");
+                        }
+
+                        setSpeed = false;
                     }
 
                     else if (argument == "exit")
@@ -256,7 +280,7 @@ namespace DobotBridgePrototype
                         StartCheckState();
                         
                     }
-                    catch (System.IO.FileNotFoundException e)
+                    catch (Exception)
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine("file '{0}' not found!", filename);
@@ -270,7 +294,6 @@ namespace DobotBridgePrototype
 
         static void ClearQueue()
         {
-            motionError = false;
             lastCommunicateIndex = DobotDll.ClearAllAlarmsState();
             lastCommunicateIndex = DobotDll.SetQueuedCmdClear();
             // disable suctionCap/gripper
@@ -430,7 +453,6 @@ namespace DobotBridgePrototype
             {
                 poses[i - 2] = new DobotPose(elements[i]);
             }
-
             return poses;
         }
     }
