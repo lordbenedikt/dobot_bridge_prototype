@@ -37,8 +37,10 @@ namespace DobotBridgePrototype
         static ulong queuedCmdIndex = 0;
         static ulong executedCmdIndex = 0;
         static uint alarmState = 0;
+        static byte infraredSensor = 0;
 
         static bool isRunning = false;
+        static bool isStopped = false;
         static Thread threadDobot = new Thread(new ThreadStart(CheckState));
 
         public static void CheckState()
@@ -48,16 +50,18 @@ namespace DobotBridgePrototype
                 byte[] alarmStateArray = new byte[32];
                 uint alarm = 0;
 
-                DobotDll.GetQueuedCmdCurrentIndex(ref executedCmdIndex);
-                DobotDll.GetAlarmsState(alarmStateArray, ref alarm, 32);
 
-                for(int i = 0; i<alarmStateArray.Length; i++) {
+                    DobotDll.GetQueuedCmdCurrentIndex(ref executedCmdIndex);
+                    DobotDll.GetAlarmsState(alarmStateArray, ref alarm, 32);
+
+                for (int i = 0; i<alarmStateArray.Length; i++) {
                     if (alarmStateArray[i] != 0)
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine("OnError(): {0} | {1}", i, alarmStateArray[i]);
                         Console.ForegroundColor = ConsoleColor.White;
                         Console.Write(">> ");
+                        alarmState = 0;
                         return;
                     }
                 }
@@ -70,7 +74,17 @@ namespace DobotBridgePrototype
                     Console.Write(">> ");
                     lastError = lastCommunicateIndex;
                 }
-                if(alarm != 0)
+
+                /*
+                if(!isStopped) {
+                    // show alarm
+                    Console.WriteLine(alarm);
+                    // show number of queued and executet commands
+                    Console.WriteLine("queueud: {0} executed: {1}", queuedCmdIndex, executedCmdIndex);
+                }
+                */
+
+                if (alarm != 0)
                 {
                     if (alarm == 16 && alarmState != alarm)
                     {
@@ -91,6 +105,7 @@ namespace DobotBridgePrototype
                     Console.WriteLine("OnFinish()");
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.Write(">> ");
+                    alarmState = 0;
                     return;
                 }
                 Thread.Sleep(10);
@@ -141,6 +156,10 @@ namespace DobotBridgePrototype
             };
             DobotDll.SetHOMEParams(ref home, true, ref queuedCmdIndex);
             // DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
+            // enable infrared sensor
+            DobotDll.SetInfraredSensor(true, InfraredPort.IF_PORT_GP2, 1);
+            // enable color sensor
+            DobotDll.SetColorSensor(true, ColorPort.IF_PORT_GP4, 1);
             isRunning = true;
         }
 
@@ -231,6 +250,33 @@ namespace DobotBridgePrototype
                         setFilename = true;
                     }
 
+                    else if (argument == "infrared")
+                    {
+                        DobotDll.GetInfraredSensor(InfraredPort.IF_PORT_GP2, ref infraredSensor);
+                        Console.WriteLine(infraredSensor);
+
+                    }
+
+                    else if (argument == "motor")
+                    {
+                        SetMotorSpeedAndDistance(0, 1, 10000, 10000);
+                        StartCheckState();
+                    }
+
+                    else if (argument == "motorSpeed")
+                    {
+                        SetMotorSpeed(0, 1, 10000);
+                    }
+
+                    else if (argument == "color")
+                    {
+                        byte r = 0;
+                        byte g = 0;
+                        byte b = 0;
+                        DobotDll.GetColorSensor(ref r, ref g, ref b);
+                        Console.WriteLine("r:{0},g:{1},b:{2}", r, g, b);
+                    }
+
                     else if (argument == "home")
                     {
                         lastCommunicateIndex = DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
@@ -239,11 +285,13 @@ namespace DobotBridgePrototype
                     else if (argument == "start")
                     {
                         lastCommunicateIndex = DobotDll.SetQueuedCmdStartExec();
+                        isStopped = false;
                     }
 
                     else if (argument == "stop")
                     {
                         lastCommunicateIndex = DobotDll.SetQueuedCmdStopExec();
+                        isStopped = true;
                     }
 
                     else if (argument == "clear")
@@ -273,23 +321,41 @@ namespace DobotBridgePrototype
                         filename = filename + ".playback";
                     }
                     // if file exists add poses to queue
+                    DobotPose[] poses = xmlReader.getPoses(filename);
                     try
                     {
-                        DobotPose[] poses = xmlReader.getPoses(filename);
                         Enqueue(poses);
                         StartCheckState();
-                        
-                    }
-                    catch (Exception)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("file '{0}' not found!", filename);
-                        Console.ForegroundColor = ConsoleColor.White;
-                    }
+                    } catch {}
+
+
                     run = false;
                 }
 
             }
+        }
+
+        static void SetMotorSpeed(byte index, byte isEnabled, UInt32 speed)
+        {
+            EMotor eMotor = new EMotor
+            {
+                index = index,
+                isEnabled = isEnabled,
+                speed = speed
+            };
+            lastCommunicateIndex = DobotDll.SetEMotor(ref eMotor, true, ref queuedCmdIndex);
+        }
+
+        static void SetMotorSpeedAndDistance(byte index, byte isEnabled, UInt32 speed, UInt32 distance)
+        {       
+            EMotorS eMotorS = new EMotorS
+            {
+                index = index,
+                isEnabled = isEnabled,
+                speed = speed,
+                distance = distance
+            };
+            lastCommunicateIndex = DobotDll.SetEMotorS(ref eMotorS, true, ref queuedCmdIndex);
         }
 
         static void ClearQueue()
@@ -445,13 +511,32 @@ namespace DobotBridgePrototype
     {
         public DobotPose[] getPoses(string file)
         {
-            XElement playback = XElement.Load(file);
-            var elements = playback.Elements().ToList<XElement>();
-
-            DobotPose[] poses = new DobotPose[elements.Count() - 2];
-            for (int i = 2; i < elements.Count(); i++)
+            XElement playback;
+            try { 
+                playback = XElement.Load(file);
+            }
+            catch (Exception)
             {
-                poses[i - 2] = new DobotPose(elements[i]);
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("file '{0}' not found!", file);
+                Console.ForegroundColor = ConsoleColor.White;
+                return null;
+            }
+            DobotPose[] poses;
+            try {
+                var elements = playback.Elements().ToList<XElement>();
+                poses = new DobotPose[elements.Count() - 2];
+                for (int i = 2; i < elements.Count(); i++)
+                {
+                    poses[i - 2] = new DobotPose(elements[i]);
+                }
+            }
+            catch
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("wrong format!", file);
+                Console.ForegroundColor = ConsoleColor.White;
+                return null;
             }
             return poses;
         }

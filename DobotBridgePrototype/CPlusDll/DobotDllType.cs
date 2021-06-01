@@ -308,6 +308,37 @@ namespace DobotBridgePrototype.CPlusDll
         public float toPoint_r;
     };
 
+    /*
+     * EMotor
+     */
+    public struct EMotor
+    {
+        public byte index; //Motor index. 0: Stepper1. 1:Stepper2
+        public byte isEnabled; //Control motor. 0: Disabled. 1: Enabled
+        public UInt32 speed; //Motor velocity (Pulse number per second)
+    };
+    public struct EMotorS
+    {
+        public byte index; //Motor index. 0: Stepper1. 1:Stepper2
+        public byte isEnabled; //Control motor. 0: Disabled. 1: Enabled
+        public UInt32 speed; //Motor velocity (Pulse number per second)
+        public UInt32 distance; //Movement distance (Pulse number)
+    };
+    public enum InfraredPort
+    {
+        IF_PORT_GP1,
+        IF_PORT_GP2,
+        IF_PORT_GP4,
+        IF_PORT_GP5
+    };
+    public enum ColorPort
+    {
+        IF_PORT_GP1,
+        IF_PORT_GP2,
+        IF_PORT_GP4,
+        IF_PORT_GP5
+    };
+
     /*********************************************************************************************************
     **用户参数 
     **User parameters

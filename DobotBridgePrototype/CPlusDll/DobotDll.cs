@@ -171,6 +171,18 @@ namespace DobotBridgePrototype.CPlusDll
         [DllImport("DobotDll.dll", EntryPoint = "GetIOADC", CallingConvention = CallingConvention.Cdecl)]
         public static extern int GetIOADC(ref IOADC ioPWM);
 
+        [DllImport("DobotDll.dll", EntryPoint = "SetEMotor", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int SetEMotor(ref EMotor eMotor, bool isQueued, ref UInt64 queuedCmdIndex);
+        [DllImport("DobotDll.dll", EntryPoint = "SetEMotorS", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int SetEMotorS(ref EMotorS eMotor, bool isQueued, ref UInt64 queuedCmdIndex);
+        [DllImport("DobotDll.dll", EntryPoint = "SetInfraredSensor", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int SetInfraredSensor(bool enable, InfraredPort infraredPort, byte version);
+        [DllImport("DobotDll.dll", EntryPoint = "GetInfraredSensor", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetInfraredSensor(InfraredPort infraredPort, ref byte value);
+        [DllImport("DobotDll.dll", EntryPoint = "SetColorSensor", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int SetColorSensor(bool enable, ColorPort colorPort, byte version);
+        [DllImport("DobotDll.dll", EntryPoint = "GetColorSensor", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetColorSensor(ref byte r, ref byte g, ref byte b);
 
         [DllImport("DobotDll.dll", EntryPoint = "SetARCParams", CallingConvention = CallingConvention.Cdecl)]
         public static extern int SetARCParams(ref ARCParams arcParams, bool isQueued, ref UInt64 queuedCmdIndex);
