@@ -46,90 +46,12 @@ namespace DobotBridgePrototype
         static bool isStopped = false;
         static Thread threadDobot = new Thread(new ThreadStart(CheckState));
 
+        static MqttClient mqttClient;
         const string brokerHostName = "broker.hivemq.com";
         const string clientName = "dobotClient";
 
-        public static void CheckState()
-        {
-            while (isRunning)
-            {
-                byte[] alarmStateArray = new byte[32];
-                UInt32 alarm = 0;
-
-
-                    DobotDll.GetQueuedCmdCurrentIndex(ref executedCmdIndex);
-                    DobotDll.GetAlarmsState(alarmStateArray, ref alarm, 32);
-
-                for (int i = 0; i<alarmStateArray.Length; i++) {
-                    if (alarmStateArray[i] != 0)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("OnError(): {0} | {1}", i, alarmStateArray[i]);
-                        Console.ForegroundColor = ConsoleColor.White;
-                        Console.Write(">> ");
-                        alarmState = 0;
-                        return;
-                    }
-                }
-
-                if (lastCommunicateIndex != 0 && lastCommunicateIndex != lastError)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    PrintError(lastCommunicateIndex);
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.Write(">> ");
-                    lastError = lastCommunicateIndex;
-                }
-
-                /*
-                if(!isStopped) {
-                    // show alarm
-                    Console.WriteLine(alarm);
-                    // show number of queued and executet commands
-                    Console.WriteLine("queueud: {0} executed: {1}", queuedCmdIndex, executedCmdIndex);
-                }
-                */
-
-                if (alarm != 0)
-                {
-                    if (alarm == 16 && alarmState != alarm)
-                    {
-                        alarmState = alarm;
-                        Console.ForegroundColor = ConsoleColor.Blue;
-                        Console.WriteLine("OnStart()");
-                        Console.ForegroundColor = ConsoleColor.White;
-                        Console.Write(">> ");
-                    }
-                    else if (alarm != 16)
-                    {
-                        Console.WriteLine("Alarm: " + alarm);
-                    }
-                }
-                if (queuedCmdIndex == executedCmdIndex)
-                {
-                    Console.ForegroundColor = ConsoleColor.Blue;
-                    Console.WriteLine("OnFinish()");
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.Write(">> ");
-                    alarmState = 0;
-                    return;
-                }
-                Thread.Sleep(10);
-            }
-        }
-
-        static void OnMqttPublishReceived(object sender, MqttMsgPublishEventArgs e)
-        {
-            Console.WriteLine(e.Message[0]);
-        }
-
         static void Main(string[] args)
         {
-            MqttClient client = new MqttClient(brokerHostName);
-            byte code = client.Connect(Guid.NewGuid().ToString());
-            client.MqttMsgPublishReceived += OnMqttPublishReceived;
-            client.Subscribe(new string[] { "dobot/test" }, new byte[] { 2 });
-
             Initialize();
             DobotDll.SetCmdTimeout(20);
             WaitForUserInput();
@@ -138,6 +60,12 @@ namespace DobotBridgePrototype
 
         static void Initialize()
         {
+            // Initialize MqttClient
+            mqttClient = new MqttClient(brokerHostName);
+            mqttClient.Connect(Guid.NewGuid().ToString());
+            mqttClient.MqttMsgPublishReceived += OnMqttPublishReceived;
+            mqttClient.Subscribe(new string[] { TopicHelper.ProgramNumber }, new byte[] { 2 });
+
             // connect and initialize
             Console.WriteLine("Connecting to Dobot...");
             StringBuilder fwType = new StringBuilder(60);
@@ -171,12 +99,93 @@ namespace DobotBridgePrototype
                 r = 0
             };
             DobotDll.SetHOMEParams(ref home, true, ref queuedCmdIndex);
-            // DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
+            //DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
+
             // enable infrared sensor
             DobotDll.SetInfraredSensor(1, InfraredPort.IF_PORT_GP2, 1);
+
             // enable color sensor
             DobotDll.SetColorSensor(true, ColorPort.IF_PORT_GP4, 1);
             isRunning = true;
+        }
+
+        public static void CheckState()
+        {
+            while (isRunning)
+            {
+                byte[] alarmStateArray = new byte[32];
+                UInt32 alarm = 0;
+                DobotDll.GetQueuedCmdCurrentIndex(ref executedCmdIndex);
+                DobotDll.GetAlarmsState(alarmStateArray, ref alarm, 32);
+
+                // On Error
+                for (int i = 0; i < alarmStateArray.Length; i++)
+                {
+                    if (alarmStateArray[i] != 0)
+                    {
+                        mqttClient.Publish(TopicHelper.Error, new byte[] { });
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("OnError(): {0} | {1}", i, alarmStateArray[i]);
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.Write(">> ");
+                        alarmState = 0;
+                        return;
+                    }
+                }
+
+                // On Communicate Error
+                if (lastCommunicateIndex != 0)
+                {
+                    mqttClient.Publish(TopicHelper.CommunicateError, new byte[] { });
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    PrintError(lastCommunicateIndex);
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write(">> ");
+                    lastError = lastCommunicateIndex;
+                    lastCommunicateIndex = 0;
+                }
+
+                // Check for alarms
+                if (alarm != 0)
+                {
+                    // On Start Execution
+                    if (alarm == 16 && alarmState != alarm)
+                    {
+                        alarmState = alarm;
+                        mqttClient.Publish(TopicHelper.Start, new byte[] { });
+                        Console.ForegroundColor = ConsoleColor.Blue;
+                        Console.WriteLine("OnStart()");
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.Write(">> ");
+                    }
+                    else if (alarm != 16)
+                    {
+                        Console.WriteLine("Alarm: " + alarm);
+                    }
+                }
+
+                // On Finish
+                if (queuedCmdIndex == executedCmdIndex)
+                {
+                    mqttClient.Publish(TopicHelper.Finish, new byte[] { });
+                    Console.ForegroundColor = ConsoleColor.Blue;
+                    Console.WriteLine("OnFinish()");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write(">> ");
+                    alarmState = 0;
+                    return;
+                }
+
+                Thread.Sleep(10);
+            }
+        }
+
+        static void OnMqttPublishReceived(object sender, MqttMsgPublishEventArgs e)
+        {
+            string filename = String.Format("program_{0}", Encoding.Default.GetString(e.Message));
+            Console.WriteLine("run {0}", filename);
+            Console.Write(">> ");
+            EnqueuePlayback(filename);
         }
 
         static void StartCheckState()
@@ -241,11 +250,7 @@ namespace DobotBridgePrototype
                             {
                                 Console.WriteLine("Values out of bound! Clamped to velocity:{0}/acceleration:{1}", vel, acc);
                             }
-                            float[] velocity = { vel, vel, vel, vel };
-                            float[] acceleration = { acc, acc, acc, acc };
-                            ptpJointParams.velocity = velocity;
-                            ptpJointParams.acceleration = acceleration;
-                            DobotDll.SetPTPJointParams(ref ptpJointParams, true, ref queuedCmdIndex);
+                            setDobotSpeed(vel, acc);
                         }
                         catch
                         {
@@ -334,25 +339,39 @@ namespace DobotBridgePrototype
                 // add poses from .playback-file to command queue
                 if (run)
                 {
-                    // append .playback to filename
-                    string[] segments = filename.Split(".");
-                    if (segments.Last<string>() != "playback")
-                    {
-                        filename = filename + ".playback";
-                    }
-                    // if file exists add poses to queue
-                    DobotPose[] poses = xmlReader.getPoses(filename);
-                    try
-                    {
-                        Enqueue(poses);
-                        StartCheckState();
-                    } catch {}
-
-
-                    run = false;
+                    EnqueuePlayback(filename);  // open .playback file and execute
+                    run = false;                // reset run variable
                 }
+                setSpeed = false;               // reset setSpeed variable
 
             }
+        }
+
+        static void setDobotSpeed(float vel, float acc)
+        {
+            float[] velocity = { vel, vel, vel, vel };
+            float[] acceleration = { acc, acc, acc, acc };
+            ptpJointParams.velocity = velocity;
+            ptpJointParams.acceleration = acceleration;
+            DobotDll.SetPTPJointParams(ref ptpJointParams, true, ref queuedCmdIndex);
+        }
+
+        static void EnqueuePlayback(string filename)
+        {
+            // append .playback to filename
+            string[] segments = filename.Split(".");
+            if (segments.Last<string>() != "playback")
+            {
+                filename = filename + ".playback";
+            }
+            // if file exists add poses to queue
+            DobotPose[] poses = xmlReader.getPoses(filename);
+            try
+            {
+                Enqueue(poses);
+                StartCheckState();
+            }
+            catch { }
         }
 
         static void SetMotorSpeed(byte index, byte isEnabled, UInt32 speed)
@@ -569,5 +588,14 @@ namespace DobotBridgePrototype
             }
             return poses;
         }
+    }
+
+    class TopicHelper
+    {
+        public readonly static string Start = "Dobot/Start";
+        public readonly static string ProgramNumber = "Dobot/ProgramNumber";
+        public readonly static string Error = "Dobot/Error";
+        public readonly static string CommunicateError = "Dobot/CommunicateError";
+        public readonly static string Finish = "Dobot/Finish";
     }
 }
