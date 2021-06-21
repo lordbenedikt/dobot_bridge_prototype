@@ -11,16 +11,16 @@ namespace DobotBridgePrototype.CPlusDll
     public class DobotDll
     {
         [DllImport("DobotDll.dll", EntryPoint = "DobotExec", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int DobotExec();
+        public static extern int DobotExec();
 
         [DllImport("DobotDll.dll", EntryPoint = "ConnectDobot", CallingConvention = CallingConvention.Cdecl)]
         public static extern int ConnectDobot(string portName, int baudrate, StringBuilder fwType, StringBuilder version);
         [DllImport("DobotDll.dll", EntryPoint = "DisconnectDobot", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void DisconnectDobot();
+        public static extern void DisconnectDobot();
         [DllImport("DobotDll.dll", EntryPoint = "SearchDobot", CallingConvention = CallingConvention.Cdecl)]
         public static extern int SearchDobot(StringBuilder dobotNameList, UInt32 maxLen);
         [DllImport("DobotDll.dll", EntryPoint = "SetCmdTimeout", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int SetCmdTimeout(uint ms);
+        public static extern int SetCmdTimeout(uint ms);
 
         // Queued command control!
         [DllImport("DobotDll.dll", EntryPoint = "SetQueuedCmdStartExec", CallingConvention = CallingConvention.Cdecl)]
@@ -83,7 +83,7 @@ namespace DobotBridgePrototype.CPlusDll
 
         // Pose and Kinematics parameters are automatically get
         [DllImport("DobotDll.dll", EntryPoint = "GetPose", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int GetPose(ref Pose pose);
+        public static extern int GetPose(ref Pose pose);
         [DllImport("DobotDll.dll", EntryPoint = "GetKinematics", CallingConvention = CallingConvention.Cdecl)]
         public static extern int GetKinematics(ref Kinematics pose);
 
@@ -176,7 +176,7 @@ namespace DobotBridgePrototype.CPlusDll
         [DllImport("DobotDll.dll", EntryPoint = "SetEMotorS", CallingConvention = CallingConvention.Cdecl)]
         public static extern int SetEMotorS(ref EMotorS eMotor, bool isQueued, ref UInt64 queuedCmdIndex);
         [DllImport("DobotDll.dll", EntryPoint = "SetInfraredSensor", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int SetInfraredSensor(bool enable, InfraredPort infraredPort, byte version);
+        public static extern int SetInfraredSensor(byte enable, InfraredPort infraredPort, byte version);
         [DllImport("DobotDll.dll", EntryPoint = "GetInfraredSensor", CallingConvention = CallingConvention.Cdecl)]
         public static extern int GetInfraredSensor(InfraredPort infraredPort, ref byte value);
         [DllImport("DobotDll.dll", EntryPoint = "SetColorSensor", CallingConvention = CallingConvention.Cdecl)]

@@ -5,6 +5,8 @@ using System.Linq;
 using System.Xml.Linq;
 using System.Globalization;
 using System.Threading;
+using uPLibrary.Networking.M2Mqtt;
+using uPLibrary.Networking.M2Mqtt.Messages;
 
 namespace DobotBridgePrototype
 {
@@ -17,6 +19,7 @@ namespace DobotBridgePrototype
      * home => return to home position
      * start => start execution of queued commands
      * stop => stop execution of queued commands
+     * stats => show current pose and infrared sensor state
      * clear => clear command queue and alarm states
      * getPose => print current dobot pose
      * exit => exit application
@@ -36,19 +39,22 @@ namespace DobotBridgePrototype
         static PTPJointParams ptpJointParams = new PTPJointParams();
         static ulong queuedCmdIndex = 0;
         static ulong executedCmdIndex = 0;
-        static uint alarmState = 0;
-        static byte infraredSensor = 0;
+        static UInt32 alarmState = 0;
+        static byte infraredSensor = 9;
 
         static bool isRunning = false;
         static bool isStopped = false;
         static Thread threadDobot = new Thread(new ThreadStart(CheckState));
+
+        const string brokerHostName = "broker.hivemq.com";
+        const string clientName = "dobotClient";
 
         public static void CheckState()
         {
             while (isRunning)
             {
                 byte[] alarmStateArray = new byte[32];
-                uint alarm = 0;
+                UInt32 alarm = 0;
 
 
                     DobotDll.GetQueuedCmdCurrentIndex(ref executedCmdIndex);
@@ -112,8 +118,18 @@ namespace DobotBridgePrototype
             }
         }
 
+        static void OnMqttPublishReceived(object sender, MqttMsgPublishEventArgs e)
+        {
+            Console.WriteLine(e.Message[0]);
+        }
+
         static void Main(string[] args)
         {
+            MqttClient client = new MqttClient(brokerHostName);
+            byte code = client.Connect(Guid.NewGuid().ToString());
+            client.MqttMsgPublishReceived += OnMqttPublishReceived;
+            client.Subscribe(new string[] { "dobot/test" }, new byte[] { 2 });
+
             Initialize();
             DobotDll.SetCmdTimeout(20);
             WaitForUserInput();
@@ -157,7 +173,7 @@ namespace DobotBridgePrototype
             DobotDll.SetHOMEParams(ref home, true, ref queuedCmdIndex);
             // DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
             // enable infrared sensor
-            DobotDll.SetInfraredSensor(true, InfraredPort.IF_PORT_GP2, 1);
+            DobotDll.SetInfraredSensor(1, InfraredPort.IF_PORT_GP2, 1);
             // enable color sensor
             DobotDll.SetColorSensor(true, ColorPort.IF_PORT_GP4, 1);
             isRunning = true;
@@ -253,8 +269,7 @@ namespace DobotBridgePrototype
                     else if (argument == "infrared")
                     {
                         DobotDll.GetInfraredSensor(InfraredPort.IF_PORT_GP2, ref infraredSensor);
-                        Console.WriteLine(infraredSensor);
-
+                        Console.WriteLine("infrared: {0}", infraredSensor);
                     }
 
                     else if (argument == "motor")
@@ -292,6 +307,11 @@ namespace DobotBridgePrototype
                     {
                         lastCommunicateIndex = DobotDll.SetQueuedCmdStopExec();
                         isStopped = true;
+                    }
+
+                    else if (argument == "stats")
+                    {
+                        ShowStats();
                     }
 
                     else if (argument == "clear")
@@ -450,6 +470,15 @@ namespace DobotBridgePrototype
                     { Console.WriteLine("DobotCommunicate_InvalidParams"); }
                     break;
             }
+        }
+
+        public static void ShowStats()
+        {
+            lastCommunicateIndex = DobotDll.GetPose(ref pose);
+            Console.WriteLine("pose:\t\t\tx={0} y={1} z={2} rHead={3}",
+                pose.x, pose.y, pose.z, pose.rHead);
+            Console.WriteLine("\t\t\tjointAngles=[{0}:{1}:{2}:{3}]", pose.jointAngle[0], pose.jointAngle[1], pose.jointAngle[2], pose.jointAngle[3]);
+            Console.WriteLine("infrared sensor:\t{0}", infraredSensor);
         }
     }
 
