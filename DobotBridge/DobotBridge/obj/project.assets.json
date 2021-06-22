@@ -1,0 +1,136 @@
+{
+  "version": 3,
+  "targets": {
+    ".NETCoreApp,Version=v3.1": {
+      "M2Mqtt/4.3.0": {
+        "type": "package",
+        "compile": {
+          "lib/net45/M2Mqtt.Net.dll": {}
+        },
+        "runtime": {
+          "lib/net45/M2Mqtt.Net.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "M2Mqtt/4.3.0": {
+      "sha512": "2A1uM20uxuovQKPA0dkZUqD9gUpIMaX7KxdLiVM7IEXdPRL709hGuudHnvlDxm2/6b2LcOjshrYGVG9vdpipag==",
+      "type": "package",
+      "path": "m2mqtt/4.3.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net39-cf/DeployFileList.txt",
+        "lib/net39-cf/M2Mqtt.NetCf39.dll",
+        "lib/net39-cf/M2Mqtt.NetCf39.pdb",
+        "lib/net45/M2Mqtt.Net.dll",
+        "lib/net45/M2Mqtt.Net.pdb",
+        "lib/netmf42/M2Mqtt.NetMf.dll",
+        "lib/netmf42/M2Mqtt.NetMf.pdb",
+        "lib/netmf42/be/M2Mqtt.NetMf.pdb",
+        "lib/netmf42/be/M2Mqtt.NetMf.pdbx",
+        "lib/netmf42/be/M2Mqtt.NetMf.pe",
+        "lib/netmf42/le/M2Mqtt.NetMf.pdb",
+        "lib/netmf42/le/M2Mqtt.NetMf.pdbx",
+        "lib/netmf42/le/M2Mqtt.NetMf.pe",
+        "lib/netmf43/M2Mqtt.NetMf.dll",
+        "lib/netmf43/M2Mqtt.NetMf.pdb",
+        "lib/netmf43/be/M2Mqtt.NetMf.pdb",
+        "lib/netmf43/be/M2Mqtt.NetMf.pdbx",
+        "lib/netmf43/be/M2Mqtt.NetMf.pe",
+        "lib/netmf43/le/M2Mqtt.NetMf.pdb",
+        "lib/netmf43/le/M2Mqtt.NetMf.pdbx",
+        "lib/netmf43/le/M2Mqtt.NetMf.pe",
+        "lib/win81/M2Mqtt.WinRT.dll",
+        "lib/win81/M2Mqtt.WinRT.pdb",
+        "lib/win81/M2Mqtt.WinRT.pri",
+        "lib/wpa81/M2Mqtt.WinRT.dll",
+        "lib/wpa81/M2Mqtt.WinRT.pdb",
+        "lib/wpa81/M2Mqtt.WinRT.pri",
+        "m2mqtt.4.3.0.nupkg.sha512",
+        "m2mqtt.nuspec"
+      ]
+    }
+  },
+  "projectFileDependencyGroups": {
+    ".NETCoreApp,Version=v3.1": [
+      "M2Mqtt >= 4.3.0"
+    ]
+  },
+  "packageFolders": {
+    "C:\\Users\\sfm\\.nuget\\packages\\": {}
+  },
+  "project": {
+    "version": "1.0.0",
+    "restore": {
+      "projectUniqueName": "C:\\Users\\sfm\\source\\repos\\DobotBridge\\DobotBridge\\DobotBridge.csproj",
+      "projectName": "DobotBridge",
+      "projectPath": "C:\\Users\\sfm\\source\\repos\\DobotBridge\\DobotBridge\\DobotBridge.csproj",
+      "packagesPath": "C:\\Users\\sfm\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\sfm\\source\\repos\\DobotBridge\\DobotBridge\\obj\\",
+      "projectStyle": "PackageReference",
+      "configFilePaths": [
+        "C:\\Users\\sfm\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+      ],
+      "originalTargetFrameworks": [
+        "netcoreapp3.1"
+      ],
+      "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "https://api.nuget.org/v3/index.json": {}
+      },
+      "frameworks": {
+        "netcoreapp3.1": {
+          "targetAlias": "netcoreapp3.1",
+          "projectReferences": {}
+        }
+      },
+      "warningProperties": {
+        "warnAsError": [
+          "NU1605"
+        ]
+      }
+    },
+    "frameworks": {
+      "netcoreapp3.1": {
+        "targetAlias": "netcoreapp3.1",
+        "dependencies": {
+          "M2Mqtt": {
+            "target": "Package",
+            "version": "[4.3.0, )"
+          }
+        },
+        "imports": [
+          "net461",
+          "net462",
+          "net47",
+          "net471",
+          "net472",
+          "net48"
+        ],
+        "assetTargetFallback": true,
+        "warn": true,
+        "frameworkReferences": {
+          "Microsoft.NETCore.App": {
+            "privateAssets": "all"
+          }
+        },
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\5.0.301\\RuntimeIdentifierGraph.json"
+      }
+    }
+  },
+  "logs": [
+    {
+      "code": "NU1701",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Das Paket \"M2Mqtt 4.3.0\" wurde nicht mit dem Projektzielframework \".NETCoreApp,Version=v3.1\", sondern mit \".NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8\" wiederhergestellt. Dieses Paket ist mit Ihrem Projekt möglicherweise nicht vollständig kompatibel.",
+      "libraryId": "M2Mqtt",
+      "targetGraphs": [
+        ".NETCoreApp,Version=v3.1"
+      ]
+    }
+  ]
+}
