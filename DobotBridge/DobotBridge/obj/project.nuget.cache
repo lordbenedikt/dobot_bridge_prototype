@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "amX0CjBOE0M7pWIpLcPoAbaBv/uR5DBiWEv4eLzXmAt0XdTZYLG5fxSki5QwvdRxvFGB36JnrwXl7uqnoaUa6g==",
+  "dgSpecHash": "c4uA++W9gBtGDr4b/BKKOkxBysXXFFpPfSs3zWpNqQTw3phnojlIJJupRzfSqx45YWVYTVXcaK8YMoSN+bnbLw==",
   "success": true,
-  "projectFilePath": "C:\\Users\\sfm\\source\\repos\\DobotBridge\\DobotBridge\\DobotBridge.csproj",
+  "projectFilePath": "C:\\Users\\sfm\\source\\repos\\dobotbridgeprototype\\DobotBridge\\DobotBridge\\DobotBridge.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\sfm\\.nuget\\packages\\m2mqtt\\4.3.0\\m2mqtt.4.3.0.nupkg.sha512"
   ],

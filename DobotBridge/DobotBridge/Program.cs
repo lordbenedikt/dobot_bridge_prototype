@@ -182,15 +182,19 @@ namespace DobotBridge
 
         static void OnMqttPublishReceived(object sender, MqttMsgPublishEventArgs e)
         {
-            string filename = String.Format("program_{0}", Encoding.Default.GetString(e.Message));
-            Console.WriteLine("run {0}", filename);
-            Console.Write(">> ");
-            if (filename == "0")
+            string message = Encoding.Default.GetString(e.Message);
+
+            if (message == "0")
             {
                 ClearQueue();
+                lastCommunicateIndex = DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
+                StartCheckState();
             }
             else
             {
+                string filename = String.Format("program_{0}", message);
+                Console.WriteLine("run {0}", filename);
+                Console.Write(">> ");
                 EnqueuePlayback(filename);
             }
         }
@@ -307,6 +311,7 @@ namespace DobotBridge
                     else if (argument == "home")
                     {
                         lastCommunicateIndex = DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
+                        StartCheckState();
                     }
 
                     else if (argument == "start")
@@ -373,12 +378,15 @@ namespace DobotBridge
             }
             // if file exists add poses to queue
             DobotPose[] poses = xmlReader.getPoses(filename);
-            try
+            if (poses != null)
             {
-                Enqueue(poses);
-                StartCheckState();
+                try
+                {
+                    Enqueue(poses);
+                    StartCheckState();
+                }
+                catch { }
             }
-            catch { }
         }
 
         static void SetMotorSpeed(byte index, byte isEnabled, UInt32 speed)

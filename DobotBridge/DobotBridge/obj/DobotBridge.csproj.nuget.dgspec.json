@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\sfm\\source\\repos\\DobotBridge\\DobotBridge\\DobotBridge.csproj": {}
+    "C:\\Users\\sfm\\source\\repos\\dobotbridgeprototype\\DobotBridge\\DobotBridge\\DobotBridge.csproj": {}
   },
   "projects": {
-    "C:\\Users\\sfm\\source\\repos\\DobotBridge\\DobotBridge\\DobotBridge.csproj": {
+    "C:\\Users\\sfm\\source\\repos\\dobotbridgeprototype\\DobotBridge\\DobotBridge\\DobotBridge.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\sfm\\source\\repos\\DobotBridge\\DobotBridge\\DobotBridge.csproj",
+        "projectUniqueName": "C:\\Users\\sfm\\source\\repos\\dobotbridgeprototype\\DobotBridge\\DobotBridge\\DobotBridge.csproj",
         "projectName": "DobotBridge",
-        "projectPath": "C:\\Users\\sfm\\source\\repos\\DobotBridge\\DobotBridge\\DobotBridge.csproj",
+        "projectPath": "C:\\Users\\sfm\\source\\repos\\dobotbridgeprototype\\DobotBridge\\DobotBridge\\DobotBridge.csproj",
         "packagesPath": "C:\\Users\\sfm\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\sfm\\source\\repos\\DobotBridge\\DobotBridge\\obj\\",
+        "outputPath": "C:\\Users\\sfm\\source\\repos\\dobotbridgeprototype\\DobotBridge\\DobotBridge\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\sfm\\AppData\\Roaming\\NuGet\\NuGet.Config",
