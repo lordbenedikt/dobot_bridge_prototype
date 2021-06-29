@@ -11,6 +11,14 @@ using uPLibrary.Networking.M2Mqtt.Messages;
 namespace DobotBridge
 {
     /*
+     * Controller subscribes to following topic and awaits commands:
+     *    Dobot/ProgramNumber
+     * Controller publishes messages to following topics:
+     *    Dobot/Start
+     *    Dobot/Error
+     *    Dobot/CommunicateError
+     *    Dobot/Finish
+     * 
      * --- console commands ---
      * run filename => execute commands previously saved in a .playback file. If missing '.playback' is automatically appended.
      * connect => attempt connecting to dobot
@@ -100,8 +108,6 @@ namespace DobotBridge
                 z = 85,
                 r = 0
             };
-
-            ClearQueue();
 
             DobotDll.SetHOMEParams(ref home, true, ref queuedCmdIndex);
             //DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
