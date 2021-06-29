@@ -45,6 +45,7 @@ namespace DobotBridge
         static bool isRunning = false;
         static bool isStopped = false;
         static Thread threadDobot = new Thread(new ThreadStart(CheckState));
+        static Thread checkConnection = new Thread(new ThreadStart(CheckConnectionState));
 
         static MqttClient mqttClient;
         const string brokerHostName = "broker.hivemq.com";
@@ -53,6 +54,7 @@ namespace DobotBridge
         static void Main(string[] args)
         {
             Initialize();
+            checkConnection.Start();
             DobotDll.SetCmdTimeout(20);
             WaitForUserInput();
             DobotDll.DisconnectDobot();
@@ -98,6 +100,9 @@ namespace DobotBridge
                 z = 85,
                 r = 0
             };
+
+            ClearQueue();
+
             DobotDll.SetHOMEParams(ref home, true, ref queuedCmdIndex);
             //DobotDll.SetHOMECmd(ref homeCmd, false, ref queuedCmdIndex);
 
@@ -107,6 +112,18 @@ namespace DobotBridge
             // enable color sensor
             DobotDll.SetColorSensor(true, ColorPort.IF_PORT_GP4, 1);
             isRunning = true;
+        }
+
+        public static void CheckConnectionState()
+        {
+            while(true)
+            {
+                if(!isConnected)
+                {
+                    Initialize();
+                }
+                Thread.Sleep(500);
+            }
         }
 
         public static void CheckState()
@@ -136,6 +153,10 @@ namespace DobotBridge
                 // On Communicate Error
                 if (lastCommunicateIndex != 0)
                 {
+                    if(lastCommunicateIndex == (int)DobotCommunicate.DobotCommunicate_Timeout)
+                    {
+                        isConnected = false;
+                    }
                     mqttClient.Publish(TopicHelper.CommunicateError, new byte[] { });
                     Console.ForegroundColor = ConsoleColor.Red;
                     PrintError(lastCommunicateIndex);
